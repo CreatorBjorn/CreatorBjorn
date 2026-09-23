@@ -55,6 +55,10 @@ query($login: String!) {
       nodes { isPrivate primaryLanguage { name } }
     }
     contributionsCollection {
+      commitContributionsByRepository(maxRepositories: 100) {
+        repository { nameWithOwner isPrivate primaryLanguage { name } }
+        contributions { totalCount }
+      }
       totalCommitContributions
       restrictedContributionsCount
       totalPullRequestContributions
@@ -67,12 +71,37 @@ query($login: String!) {
 }
 """
 
+# contributionsCollection only covers one year per call, so the all-time
+# project list is collected year by year, from the account's first year to today
+YEAR_QUERY = """
+query($login: String!, $from: DateTime!, $to: DateTime!) {
+  user(login: $login) {
+    contributionsCollection(from: $from, to: $to) {
+      commitContributionsByRepository(maxRepositories: 100) {
+        repository { nameWithOwner isPrivate primaryLanguage { name } }
+        contributions { totalCount }
+      }
+    }
+  }
+}
+"""
+
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 
 # -------------------------------------------------------------------- data --
-def fetch(token, login):
-    body = json.dumps({"query": QUERY, "variables": {"login": login}}).encode()
+# GitHub guesses a repo's language from file extensions and gets Unity/web
+# projects wrong (shader, .m and markup files). These never show up in the panel.
+IGNORE_LANGS = {
+    "Wolfram Language", "Mathematica", "Objective-C", "ShaderLab", "HLSL", "GLSL",
+    "HTML", "CSS", "SCSS", "Python", "Shell", "PowerShell", "Batchfile",
+    "Dockerfile", "Makefile", "Jupyter Notebook",
+}
+FALLBACK_LANGS = ["C#", "TypeScript"]   # shown if nothing else is left
+
+
+def graphql(token, query, variables):
+    body = json.dumps({"query": query, "variables": variables}).encode()
     req = urllib.request.Request(API, data=body, headers={
         "Authorization": "bearer " + token,
         "Content-Type": "application/json",
@@ -83,6 +112,31 @@ def fetch(token, login):
     if "errors" in payload:
         raise RuntimeError(payload["errors"][0].get("message", "GraphQL error"))
     return payload["data"]["user"]
+
+
+def fetch(token, login):
+    user = graphql(token, QUERY, {"login": login})
+    # every repo you ever committed to, merged across years
+    merged = {}
+    now = dt.datetime.now(dt.timezone.utc)
+    year = int(user["createdAt"][:4])
+    while year <= now.year:
+        start = dt.datetime(year, 1, 1, tzinfo=dt.timezone.utc)
+        end = min(dt.datetime(year + 1, 1, 1, tzinfo=dt.timezone.utc), now)
+        part = graphql(token, YEAR_QUERY, {
+            "login": login,
+            "from": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "to": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        })
+        for item in part["contributionsCollection"]["commitContributionsByRepository"] or []:
+            key = item["repository"]["nameWithOwner"].lower()
+            if key in merged:
+                merged[key]["contributions"]["totalCount"] += item["contributions"]["totalCount"]
+            else:
+                merged[key] = item
+        year += 1
+    user["allTimeRepos"] = list(merged.values())
+    return user
 
 
 def stats(user, today=None):
@@ -124,19 +178,28 @@ def stats(user, today=None):
         if (d.year, d.month) in per:
             per[(d.year, d.month)] += n
 
-    langs = {}
-    for r in user["repositories"]["nodes"]:
-        if r.get("primaryLanguage"):
-            name = r["primaryLanguage"]["name"]
-            langs[name] = langs.get(name, 0) + 1
-    top = [n for n, _ in sorted(langs.items(), key=lambda kv: -kv[1])[:3]]
+    # what you actually worked on: every repo you ever committed to,
+    # org repos included, weighted by your own commits; the profile repo is left out
+    profile_repo = ("%s/%s" % (user["login"], user["login"])).lower()
+    worked, langs = [], {}
+    for item in user.get("allTimeRepos") or c.get("commitContributionsByRepository") or []:
+        repo = item["repository"]
+        if repo["nameWithOwner"].lower() == profile_repo:
+            continue
+        worked.append(repo)
+        n = item["contributions"]["totalCount"]
+        if repo.get("primaryLanguage"):
+            name = repo["primaryLanguage"]["name"]
+            langs[name] = langs.get(name, 0) + n
+    top = [n for n, _ in sorted(langs.items(), key=lambda kv: -kv[1])
+           if n not in IGNORE_LANGS][:3] or FALLBACK_LANGS
 
     return {
         "contributions": cal["totalContributions"],
         "commits": c["totalCommitContributions"] + c.get("restrictedContributionsCount", 0),
         "prs": c["totalPullRequestContributions"],
-        "repos": user["repositories"]["totalCount"],
-        "private": sum(1 for r in user["repositories"]["nodes"] if r["isPrivate"]),
+        "repos": len(worked),
+        "private": sum(1 for r in worked if r["isPrivate"]),
         "langs": " · ".join(top) or "—",
         "streak": streak,
         "longest": longest,
@@ -241,11 +304,15 @@ def text_column(x, y0, s):
     out.append(section(x, y, "SIGNAL")); y += ROW_H
     streak = "%s day%s" % (s["streak"], "" if s["streak"] == 1 else "s")
     longest = "%s day%s" % (s["longest"], "" if s["longest"] == 1 else "s")
-    for label, value, col in [
+    signal = [
         ("contributions", "%s  (last 12 months)" % s["contributions"], "#ffcf9e"),
         ("commits", s["commits"], "#e0813c"),
-        ("pull requests", s["prs"], "#a3b4c4"),
-        ("repositories", "%s  (%s private)" % (s["repos"], s["private"]), "#a3b4c4"),
+    ]
+    if s["prs"]:
+        signal.append(("pull requests", s["prs"], "#a3b4c4"))
+    if s["repos"]:
+        signal.append(("projects", "%s  (all time, %s private)" % (s["repos"], s["private"]), "#a3b4c4"))
+    for label, value, col in signal + [
         ("languages", s["langs"], "#a3b4c4"),
         ("current streak", streak, "#ffcf9e" if s["streak"] else "#a3b4c4"),
         ("longest streak", longest, "#a3b4c4"),
