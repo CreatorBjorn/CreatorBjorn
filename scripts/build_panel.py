@@ -50,9 +50,11 @@ query($login: String!) {
   user(login: $login) {
     login
     createdAt
-    repositories(first: 100, ownerAffiliations: OWNER, isFork: false) {
+    repositories(first: 100, isFork: false,
+                 affiliations: [OWNER, ORGANIZATION_MEMBER, COLLABORATOR],
+                 ownerAffiliations: [OWNER, ORGANIZATION_MEMBER, COLLABORATOR]) {
       totalCount
-      nodes { isPrivate primaryLanguage { name } }
+      nodes { nameWithOwner isPrivate primaryLanguage { name } }
     }
     contributionsCollection {
       commitContributionsByRepository(maxRepositories: 100) {
@@ -120,22 +122,27 @@ def fetch(token, login):
     merged = {}
     now = dt.datetime.now(dt.timezone.utc)
     year = int(user["createdAt"][:4])
-    while year <= now.year:
-        start = dt.datetime(year, 1, 1, tzinfo=dt.timezone.utc)
-        end = min(dt.datetime(year + 1, 1, 1, tzinfo=dt.timezone.utc), now)
-        part = graphql(token, YEAR_QUERY, {
-            "login": login,
-            "from": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "to": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        })
-        for item in part["contributionsCollection"]["commitContributionsByRepository"] or []:
-            key = item["repository"]["nameWithOwner"].lower()
-            if key in merged:
-                merged[key]["contributions"]["totalCount"] += item["contributions"]["totalCount"]
-            else:
-                merged[key] = item
-        year += 1
-    user["allTimeRepos"] = list(merged.values())
+    try:
+        while year <= now.year:
+            # GitHub allows at most one year per call; Dec 31 23:59:59 keeps leap years inside it
+            start = dt.datetime(year, 1, 1, tzinfo=dt.timezone.utc)
+            end = min(dt.datetime(year, 12, 31, 23, 59, 59, tzinfo=dt.timezone.utc), now)
+            part = graphql(token, YEAR_QUERY, {
+                "login": login,
+                "from": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "to": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            })
+            for item in part["contributionsCollection"]["commitContributionsByRepository"] or []:
+                key = item["repository"]["nameWithOwner"].lower()
+                if key in merged:
+                    merged[key]["contributions"]["totalCount"] += item["contributions"]["totalCount"]
+                else:
+                    merged[key] = item
+            year += 1
+        user["allTimeRepos"] = list(merged.values())
+    except (urllib.error.URLError, RuntimeError, KeyError, TypeError) as e:
+        # the rest of the panel still gets rebuilt; projects fall back to the last 12 months
+        print("all-time project list failed (%s) — using the last 12 months" % e, file=sys.stderr)
     return user
 
 
@@ -191,6 +198,20 @@ def stats(user, today=None):
         if repo.get("primaryLanguage"):
             name = repo["primaryLanguage"]["name"]
             langs[name] = langs.get(name, 0) + n
+    # GitHub hides commits it can't tie to your account (other e-mail, side
+    # branches). If none were found, count the repos you are part of instead:
+    # your own plus the organisations you belong to.
+    if not worked:
+        for repo in (user.get("repositories") or {}).get("nodes") or []:
+            if repo["nameWithOwner"].lower() == profile_repo:
+                continue
+            worked.append(repo)
+            if repo.get("primaryLanguage"):
+                name = repo["primaryLanguage"]["name"]
+                langs[name] = langs.get(name, 0) + 1
+    print("projects: %d commit-linked, %d you belong to -> showing %d" % (
+        len(user.get("allTimeRepos") or c.get("commitContributionsByRepository") or []),
+        len((user.get("repositories") or {}).get("nodes") or []), len(worked)))
     top = [n for n, _ in sorted(langs.items(), key=lambda kv: -kv[1])
            if n not in IGNORE_LANGS][:3] or FALLBACK_LANGS
 
@@ -200,6 +221,7 @@ def stats(user, today=None):
         "prs": c["totalPullRequestContributions"],
         "repos": len(worked),
         "private": sum(1 for r in worked if r["isPrivate"]),
+        "all_time": "allTimeRepos" in user,
         "langs": " · ".join(top) or "—",
         "streak": streak,
         "longest": longest,
@@ -311,7 +333,7 @@ def text_column(x, y0, s):
     if s["prs"]:
         signal.append(("pull requests", s["prs"], "#a3b4c4"))
     if s["repos"]:
-        signal.append(("projects", "%s  (all time, %s private)" % (s["repos"], s["private"]), "#a3b4c4"))
+        signal.append(("projects", "%s  (%s, %s private)" % (s["repos"], "all time" if s["all_time"] else "last 12 months", s["private"]), "#a3b4c4"))
     for label, value, col in signal + [
         ("languages", s["langs"], "#a3b4c4"),
         ("current streak", streak, "#ffcf9e" if s["streak"] else "#a3b4c4"),
