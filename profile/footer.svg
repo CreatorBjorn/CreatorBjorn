@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 150" width="1200" height="150" role="img" aria-label="Available for freelance work">
+  <defs>
+    <linearGradient id="fg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1c1012"/>
+      <stop offset="0.45" stop-color="#151319"/>
+      <stop offset="1" stop-color="#10151b"/>
+    </linearGradient>
+    <radialGradient id="fglow" cx="0.86" cy="-0.05" r="0.7">
+      <stop offset="0" stop-color="#f08b3e" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#c04d1e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fember" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0" stop-color="#ffb36b"/>
+      <stop offset="0.5" stop-color="#e0672f"/>
+      <stop offset="1" stop-color="#e0672f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fadein" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000000"/>
+      <stop offset="0.3" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <mask id="meltup">
+      <rect width="1200" height="150" fill="url(#fadein)"/>
+    </mask>
+    <pattern id="fgrid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0 L0 0 0 40" fill="none" stroke="#ffffff" stroke-opacity="0.03" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <g mask="url(#meltup)">
+    <rect width="1200" height="150" fill="url(#fg)"/>
+    <rect width="1200" height="150" fill="url(#fgrid)"/>
+    <rect width="1200" height="150" fill="url(#fglow)"/>
+
+    <text x="1112" y="106" text-anchor="end" fill="#a3b4c4"
+          font-family="DejaVu Sans Mono, Consolas, Menlo, monospace"
+          font-size="16" letter-spacing="4">AVAILABLE FOR FREELANCE</text>
+    <rect x="916" y="120" width="196" height="3" rx="1.5" fill="url(#fember)"/>
+
+    <g fill="#f2903f" opacity="0.55">
+      <circle cx="1014" cy="66" r="1.8">
+        <animate attributeName="cy" values="66;140" dur="8s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.7;0" dur="8s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="1078" cy="58" r="1.4">
+        <animate attributeName="cy" values="58;140" dur="10s" begin="2.5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.6;0" dur="10s" begin="2.5s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+  </g>
+</svg>
