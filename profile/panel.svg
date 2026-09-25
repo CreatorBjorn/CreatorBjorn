@@ -114,7 +114,7 @@
       <text x="492" y="384" font-size="14" fill="#6f7f8f">commits</text><text x="559.4" y="384" font-size="14" fill="#4b5763">......................................................</text><text x="1052" y="384" font-size="14" fill="#e0813c" text-anchor="end">844</text>
       <text x="492" y="410" font-size="14" fill="#6f7f8f">projects</text><text x="567.9" y="410" font-size="14" fill="#4b5763">..............................</text><text x="1052" y="410" font-size="14" fill="#a3b4c4" text-anchor="end">32  (all time, 32 private)</text>
       <text x="492" y="436" font-size="14" fill="#6f7f8f">languages</text><text x="576.3" y="436" font-size="14" fill="#4b5763">...........................</text><text x="1052" y="436" font-size="14" fill="#a3b4c4" text-anchor="end">C# · TypeScript · JavaScript</text>
-      <text x="492" y="462" font-size="14" fill="#6f7f8f">current streak</text><text x="618.4" y="462" font-size="14" fill="#4b5763">.............................................</text><text x="1052" y="462" font-size="14" fill="#ffcf9e" text-anchor="end">1 day</text>
+      <text x="492" y="462" font-size="14" fill="#6f7f8f">current streak</text><text x="618.4" y="462" font-size="14" fill="#4b5763">............................................</text><text x="1052" y="462" font-size="14" fill="#a3b4c4" text-anchor="end">0 days</text>
       <text x="492" y="488" font-size="14" fill="#6f7f8f">longest streak</text><text x="618.4" y="488" font-size="14" fill="#4b5763">...........................................</text><text x="1052" y="488" font-size="14" fill="#a3b4c4" text-anchor="end">13 days</text>
       <text x="492" y="514" font-size="14" fill="#6f7f8f">busiest day</text><text x="593.2" y="514" font-size="14" fill="#4b5763">.............................................</text><text x="1052" y="514" font-size="14" fill="#a3b4c4" text-anchor="end">Saturday</text>
       <text x="492" y="556" font-size="11" fill="#6f7f8f" letter-spacing="1.5">last 12 months</text>
@@ -142,7 +142,7 @@
       <text x="985.0" y="618.0" font-size="10" fill="#4b5763" text-anchor="middle">A</text>
       <rect x="1012.7" y="602.0" width="39.3" height="2.0" rx="2" fill="#ffcf9e" opacity="1"/>
       <text x="1032.3" y="618.0" font-size="10" fill="#4b5763" text-anchor="middle">S</text>
-      <text x="492" y="728" font-size="11" fill="#4c5865" letter-spacing="1.5">rebuilt 2026-09-24 · numbers include private repositories</text>
+      <text x="492" y="728" font-size="11" fill="#4c5865" letter-spacing="1.5">rebuilt 2026-09-25 · numbers include private repositories</text>
     </g>
   </g>
 </svg>
